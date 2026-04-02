@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics & Insights - Finance Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <%- include('layouts/header') %>
+
+    <div class="container">
+        <div class="dashboard-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h1>Advanced Insights & Analytics</h1>
+                <p class="subtitle">Deep-dive financial aggregations for Analysts and Admins</p>
+            </div>
+            <div class="action-buttons">
+                <a href="/analytics/export" class="btn btn-info">Download CSV Report</a>
+            </div>
+        </div>
+
+        <!-- Anomaly Alerts Section -->
+        <div id="alerts-container" style="display: none; margin-bottom: 30px;">
+            <div style="background: #fff3cd; border-left: 5px solid #ffc107; padding: 20px; border-radius: 8px;">
+                <h3 style="margin-top: 0; color: #856404;">🚨 Anomaly Detection Alerts</h3>
+                <ul id="alerts-list" style="margin-bottom: 0; padding-left: 20px;">
+                    <!-- Alerts populated by JS -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Summary Totals with MoM -->
+        <div class="summary-cards" id="analytics-summary">
+            <div class="card card-income">
+                <h3>Total Income</h3>
+                <p class="amount" id="total-income-val">Loading...</p>
+                <small id="income-mom" style="font-weight: bold;"></small>
+            </div>
+            <div class="card card-expense">
+                <h3>Total Expenses</h3>
+                <p class="amount" id="total-expense-val">Loading...</p>
+                <small id="expense-mom" style="font-weight: bold;"></small>
+            </div>
+            <div class="card card-balance">
+                <h3>Financial Health</h3>
+                <p class="amount" id="health-score" style="font-size: 1.2rem; margin-top: 10px;">Calculating...</p>
+            </div>
+        </div>
+
+        <!-- Performance Distribution (Pie Chart) -->
+        <div class="charts-section" style="margin-top: 30px;">
+            <div class="chart-container" style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 id="dist-heading" style="margin: 0;">Expense Distribution</h3>
+                    <div>
+                        <button id="dist-tab-expense" class="btn btn-sm btn-danger" onclick="switchDistributionTab('expense')">Expense</button>
+                        <button id="dist-tab-income" class="btn btn-sm btn-secondary" onclick="switchDistributionTab('income')">Income</button>
+                    </div>
+                </div>
+                <div style="max-width: 400px; margin: 0 auto;">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Charts Section -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3 style="margin: 0;">Category Breakdown</h3>
+                    <div>
+                        <button id="tab-expense" class="btn btn-sm btn-danger" onclick="switchCategoryTab('expense')">Expense</button>
+                        <button id="tab-income" class="btn btn-sm btn-secondary" onclick="switchCategoryTab('income')">Income</button>
+                    </div>
+                </div>
+                <canvas id="categoryChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3>Historical Monthly Trends</h3>
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <%- include('layouts/footer') %>
+
+    <script>
+        // Global variables for chart instances and data
+        let categoryChart;
+        let monthlyChart;
+        let distributionChart;
+        let expenseLabels = [], expenseTotals = [];
+        let incomeLabels = [], incomeTotals = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchSummary();
+            await fetchAdvancedStats();
+            await fetchTrends();
+            await fetchCategoryTotals();
+        });
+
+        // 1. Fetch Summary Totals
+        async function fetchSummary() {
+            try {
+                const response = await fetch('/analytics/summary');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('total-income-val').textContent = '₹' + data.totalIncome.toLocaleString('en-IN', {minimumFractionDigits: 2});
+                    document.getElementById('total-expense-val').textContent = '₹' + data.totalExpense.toLocaleString('en-IN', {minimumFractionDigits: 2});
+                    
+                    const ratio = data.totalIncome > 0 ? (data.totalExpense / data.totalIncome) * 100 : 0;
+                    const healthEl = document.getElementById('health-score');
+                    if (ratio < 50) { healthEl.textContent = 'Excellent (Low Burn)'; healthEl.style.color = '#4CAF50'; }
+                    else if (ratio < 80) { healthEl.textContent = 'Stable'; healthEl.style.color = '#2196F3'; }
+                    else { healthEl.textContent = 'High Expenditure'; healthEl.style.color = '#f44336'; }
+                }
+            } catch (error) {
+                console.error('Error fetching summary:', error);
+            }
+        }
+
+        // 2. Fetch Advanced Stats (MoM & Anomalies)
+        async function fetchAdvancedStats() {
+            try {
+                const response = await fetch('/analytics/advanced-stats');
+                const data = await response.json();
+                if (data.success) {
+                    // Update MoM Indicators
+                    const incMom = document.getElementById('income-mom');
+                    incMom.textContent = (data.incomeMoM >= 0 ? '+' : '') + data.incomeMoM + '% MoM';
+                    incMom.style.color = data.incomeMoM >= 0 ? '#4CAF50' : '#f44336';
+
+                    const expMom = document.getElementById('expense-mom');
+                    expMom.textContent = (data.expenseMoM >= 0 ? '+' : '') + data.expenseMoM + '% MoM';
+                    expMom.style.color = data.expenseMoM <= 0 ? '#4CAF50' : '#f44336';
+
+                    // Update Anomalies
+                    if (data.anomalies && data.anomalies.length > 0) {
+                        const container = document.getElementById('alerts-container');
+                        const list = document.getElementById('alerts-list');
+                        list.innerHTML = '';
+                        data.anomalies.forEach(a => {
+                            const li = document.createElement('li');
+                            li.style.marginBottom = '10px';
+                            li.innerHTML = `<strong>${a.category}</strong> ${a.type} jumped by <strong>${parseFloat(a.percentage_change).toFixed(1)}%</strong> compared to last month.`;
+                            list.appendChild(li);
+                        });
+                        container.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching advanced stats:', error);
+            }
+        }
+
+        // 3. Fetch Category Totals (Bar + Pie Chart)
+        async function fetchCategoryTotals() {
+            try {
+                const response = await fetch('/analytics/category');
+                const result = await response.json();
+                if (result.success) {
+                    const categoryData = result.categories;
+                    
+                    const incomeData = categoryData.filter(d => d.type === 'income');
+                    const expenseData = categoryData.filter(d => d.type === 'expense');
+
+                    incomeLabels = incomeData.map(d => d.category);
+                    incomeTotals = incomeData.map(d => parseFloat(d.total));
+                    
+                    expenseLabels = expenseData.map(d => d.category);
+                    expenseTotals = expenseData.map(d => parseFloat(d.total));
+
+                    // Distribution Pie Chart (Expense)
+                    const distCtx = document.getElementById('distributionChart').getContext('2d');
+                    distributionChart = new Chart(distCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: expenseLabels,
+                            datasets: [{
+                                data: expenseTotals,
+                                backgroundColor: ['#f44336', '#FF9800', '#FFC107', '#E91E63', '#9C27B0']
+                            }]
+                        },
+                        options: { responsive: true }
+                    });
+
+                    // Breakdown Bar Chart
+                    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+                    categoryChart = new Chart(categoryCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: expenseLabels,
+                            datasets: [{
+                                label: 'Expense',
+                                data: expenseTotals,
+                                backgroundColor: '#f44336',
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching category data:', error);
+            }
+        }
+
+        function switchCategoryTab(type) {
+            if (!categoryChart) return;
+            const btnExpense = document.getElementById('tab-expense');
+            const btnIncome = document.getElementById('tab-income');
+
+            if (type === 'expense') {
+                btnExpense.className = 'btn btn-sm btn-danger';
+                btnIncome.className = 'btn btn-sm btn-secondary';
+                
+                categoryChart.data.labels = expenseLabels;
+                categoryChart.data.datasets[0].label = 'Expense';
+                categoryChart.data.datasets[0].data = expenseTotals;
+                categoryChart.data.datasets[0].backgroundColor = '#f44336';
+            } else {
+                btnExpense.className = 'btn btn-sm btn-secondary';
+                btnIncome.className = 'btn btn-sm btn-success';
+
+                categoryChart.data.labels = incomeLabels;
+                categoryChart.data.datasets[0].label = 'Income';
+                categoryChart.data.datasets[0].data = incomeTotals;
+                categoryChart.data.datasets[0].backgroundColor = '#4CAF50';
+            }
+            categoryChart.update();
+        }
+
+        function switchDistributionTab(type) {
+            if (!distributionChart) return;
+            const btnExpense = document.getElementById('dist-tab-expense');
+            const btnIncome = document.getElementById('dist-tab-income');
+            const heading = document.getElementById('dist-heading');
+
+            if (type === 'expense') {
+                btnExpense.className = 'btn btn-sm btn-danger';
+                btnIncome.className = 'btn btn-sm btn-secondary';
+                heading.textContent = 'Expense Distribution';
+                
+                distributionChart.data.labels = expenseLabels;
+                distributionChart.data.datasets[0].data = expenseTotals;
+                distributionChart.data.datasets[0].backgroundColor = ['#f44336', '#FF9800', '#FFC107', '#E91E63', '#9C27B0'];
+            } else {
+                btnExpense.className = 'btn btn-sm btn-secondary';
+                btnIncome.className = 'btn btn-sm btn-success';
+                heading.textContent = 'Income Distribution';
+
+                distributionChart.data.labels = incomeLabels;
+                distributionChart.data.datasets[0].data = incomeTotals;
+                distributionChart.data.datasets[0].backgroundColor = ['#4CAF50', '#2196F3', '#009688', '#FFEB3B', '#FF5722'];
+            }
+            distributionChart.update();
+        }
+
+        // 4. Fetch Monthly Trends
+        async function fetchTrends() {
+            try {
+                const response = await fetch('/analytics/trends');
+                const result = await response.json();
+                if (result.success) {
+                    const monthlyData = result.trends;
+                    const months = [...new Set(monthlyData.map(d => d.month))].reverse();
+                    
+                    const incomeByMonth = months.map(month => {
+                        const item = monthlyData.find(d => d.month === month && d.type === 'income');
+                        return item ? parseFloat(item.total) : 0;
+                    });
+                    
+                    const expenseByMonth = months.map(month => {
+                        const item = monthlyData.find(d => d.month === month && d.type === 'expense');
+                        return item ? parseFloat(item.total) : 0;
+                    });
+
+                    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+                    monthlyChart = new Chart(monthlyCtx, {
+                        type: 'line',
+                        data: {
+                            labels: months,
+                            datasets: [
+                                {
+                                    label: 'Income',
+                                    data: incomeByMonth,
+                                    borderColor: '#4CAF50',
+                                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                                    borderWidth: 2,
+                                    tension: 0.4
+                                },
+                                {
+                                    label: 'Expense',
+                                    data: expenseByMonth,
+                                    borderColor: '#f44336',
+                                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                                    borderWidth: 2,
+                                    tension: 0.4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching trends:', error);
+            }
+        }
+    </script>
+</body>
+
+</html>
