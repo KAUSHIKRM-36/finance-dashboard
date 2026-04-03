@@ -59,7 +59,7 @@ npm run dev
 | View Financial Records | ✅ | ✅ | ✅ |
 | Advanced Analytics | ❌ | ✅ | ✅ |
 | Create Records | ❌ | ❌ | ✅ |
-| Edit/Delete Records | ❌ | Ownership-Based | ✅ |
+| Edit/Delete Records | ❌ | ❌ | ✅ |
 | User Management | ❌ | ❌ | ✅ |
 
 ---
@@ -86,5 +86,8 @@ The application implements a **Centralized Error Handling** middleware in `app.j
 ## 💡 Thoughtfulness & Trade-offs
 - **Server-Side Rendering (SSR)**: Chose EJS for rapid development and SEO-ready HTML delivery without the overhead of a heavy frontend framework.
 - **Session-Based Auth**: Optimized for security; allowed us to implement the "Global Kill Switch" for inactive users that JWTs cannot easily handle without Revocation Lists.
-- **Filter & Search Records**: Implemented server-side filtering and search to allow Analysts and Admins to quickly find records by **date, type, category, or amount**. This approach handles large datasets efficiently and reduces frontend load, avoiding performance bottlenecks with client-side rendering.  
+- **Filter & Search Records**: Implemented server-side filtering and search to allow Analysts and Admins to quickly find records by **date, type, category, or amount** in the records page. This approach handles large datasets efficiently and reduces frontend load, avoiding performance bottlenecks with client-side rendering. 
+ 
+## 💡 Extra Feature
+- **Smart Reactivation Workflow**: Integrated an automated request system for deactivated accounts, featuring real-time admin notifications and one-click account restoration.
 
