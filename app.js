@@ -32,6 +32,22 @@ const { checkStatus } = require('./middlewares/auth');
 
 app.use(checkStatus); // Block 'inactive' users globally
 
+// Global Notification Count Middleware (for Admins)
+const Notification = require('./models/Notification');
+app.use(async (req, res, next) => {
+    if (req.session.user && req.session.user.role === 'admin') {
+        try {
+            res.locals.pendingCount = await Notification.countPending();
+        } catch (error) {
+            console.error('Error fetching notification count:', error);
+            res.locals.pendingCount = 0;
+        }
+    } else {
+        res.locals.pendingCount = 0;
+    }
+    next();
+});
+
 app.use('/auth', require('./routes/auth'));
 app.use('/dashboard', require('./routes/dashboard'));
 app.use('/records', require('./routes/records'));

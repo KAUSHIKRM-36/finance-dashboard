@@ -20,6 +20,28 @@
                 <button class="btn btn-primary" onclick="showCreateUserModal()">+ Add User</button>
             </div>
 
+            <!-- Pending Notifications Section -->
+            <% if (notifications && notifications.length > 0) { %>
+                <div class="notifications-section" style="margin-bottom: 30px; padding: 20px; background: rgba(255, 193, 7, 0.1); border-left: 5px solid #ffc107; border-radius: 4px;">
+                    <h2 style="margin-top: 0; color: #856404; font-size: 1.2rem;">🔔 Pending Reactivation Requests</h2>
+                    <div style="display: grid; gap: 10px; margin-top: 15px;">
+                        <% notifications.forEach(n => { %>
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <div>
+                                    <strong style="color: #333;"><%= n.username %></strong> 
+                                    <span style="color: #666; font-size: 0.9rem; margin-left: 10px;">(<%= n.email %>)</span>
+                                    <div style="font-size: 0.85rem; color: #888; margin-top: 2px;">Requested: <%= new Date(n.created_at).toLocaleString() %></div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-sm btn-success" onclick="handleNotification(<%= n.id %>, 'approve')">Activate</button>
+                                    <button class="btn btn-sm btn-secondary" onclick="handleNotification(<%= n.id %>, 'deny')">Ignore</button>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+            <% } %>
+
             <% if (users.length> 0) { %>
                 <table class="table">
                     <thead>
@@ -250,6 +272,32 @@
                         } else {
                             const data = await response.json();
                             alert('Error: ' + data.error);
+                        }
+                    } catch (error) {
+                        alert('Error: ' + error.message);
+                    }
+                }
+
+                async function handleNotification(notificationId, action) {
+                    const confirmMessage = action === 'approve' 
+                        ? 'Are you sure you want to reactivate this user?' 
+                        : 'Are you sure you want to dismiss this request?';
+                    
+                    if (!confirm(confirmMessage)) return;
+
+                    try {
+                        const response = await fetch(`/users/notifications/${notificationId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action })
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            alert(result.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + result.error);
                         }
                     } catch (error) {
                         alert('Error: ' + error.message);

@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Notification = require('../models/Notification'); // Added Notification model
 
 // Login handler
 exports.login = async (req, res) => {
@@ -7,7 +8,8 @@ exports.login = async (req, res) => {
 
     if (!username || !password) {
       return res.status(401).render('login', {
-        message: 'Username and password are required'
+        message: 'Username and password are required',
+        isInactive: false
       });
     }
 
@@ -16,14 +18,17 @@ exports.login = async (req, res) => {
 
     if (!user) {
       return res.status(401).render('login', {
-        message: 'Username or password is incorrect'
+        message: 'Username or password is incorrect',
+        isInactive: false
       });
     }
 
     // Check if user is active
     if (user.status === 'inactive') {
       return res.status(401).render('login', {
-        message: 'Your account has been deactivated. Contact admin.'
+        message: 'Your account has been deactivated. Contact admin.',
+        isInactive: true, // Pass flag to show "Request Reactivation" button
+        userId: user.id   // Pass ID for the request
       });
     }
 
@@ -32,7 +37,8 @@ exports.login = async (req, res) => {
 
     if (!isPasswordValid) {
       return res.status(401).render('login', {
-        message: 'Username or password is incorrect'
+        message: 'Username or password is incorrect',
+        isInactive: false
       });
     }
 
@@ -48,7 +54,8 @@ exports.login = async (req, res) => {
       if (err) {
         console.error('Session save error:', err);
         return res.status(500).render('login', {
-          message: 'An error occurred during login setup'
+          message: 'An error occurred during login setup',
+          isInactive: false
         });
       }
       res.redirect('/dashboard');
@@ -56,8 +63,34 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).render('login', {
-      message: 'An error occurred during login'
+      message: 'An error occurred during login',
+      isInactive: false
     });
+  }
+};
+
+// Request account reactivation
+exports.requestReactivation = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    await Notification.create({
+      userId,
+      type: 'reactivation',
+      message: 'User requested account reactivation'
+    });
+
+    res.json({
+      success: true,
+      message: 'Reactivation request sent to admin successfully.'
+    });
+  } catch (error) {
+    console.error('Reactivation request error:', error);
+    res.status(500).json({ error: 'Failed to send reactivation request' });
   }
 };
 
@@ -133,7 +166,7 @@ exports.showLogin = (req, res) => {
   if (req.session.user) {
     return res.redirect('/dashboard');
   }
-  res.render('login', { message: '' });
+  res.render('login', { message: '', isInactive: false });
 };
 
 // Show register page
@@ -142,4 +175,4 @@ exports.showRegister = (req, res) => {
     return res.redirect('/dashboard');
   }
   res.render('register', { message: '' });
-};
+};

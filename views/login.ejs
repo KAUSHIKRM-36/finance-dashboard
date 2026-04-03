@@ -18,7 +18,48 @@
                 <div class="alert alert-error">
                     <%= message %>
                 </div>
+                <% if (typeof isInactive !== 'undefined' && isInactive) { %>
+                    <div id="reactivation-container" style="margin-top: 10px;">
+                        <button type="button" id="btn-request-activation" class="btn btn-secondary btn-block">
+                            Request Admin for Activation
+                        </button>
+                    </div>
+
+                    <script>
+                        document.getElementById('btn-request-activation').addEventListener('click', async () => {
+                            const btn = document.getElementById('btn-request-activation');
+                            const container = document.getElementById('reactivation-container');
+                            
+                            if (confirm('Do you want to send a reactivation request to the admin?')) {
+                                try {
+                                    btn.disabled = true;
+                                    btn.innerText = 'Sending...';
+                                    
+                                    const response = await fetch('/auth/request-activation', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ userId: '<%= typeof userId !== "undefined" ? userId : "" %>' })
+                                    });
+                                    
+                                    const result = await response.json();
+                                    
+                                    if (result.success) {
+                                        container.innerHTML = '<div class="alert alert-success">Request sent! Admin will review it.</div>';
+                                    } else {
+                                        btn.disabled = false;
+                                        btn.innerText = 'Request Admin for Activation';
+                                        alert(result.error || 'Failed to send request.');
+                                    }
+                                } catch (error) {
+                                    btn.disabled = false;
+                                    btn.innerText = 'Request Admin for Activation';
+                                    alert('An error occurred. Please try again.');
+                                }
+                            }
+                        });
+                    </script>
                 <% } %>
+            <% } %>
 
                     <form action="/auth/login" method="POST" class="auth-form">
                         <div class="form-group">

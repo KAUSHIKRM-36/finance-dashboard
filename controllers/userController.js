@@ -1,18 +1,48 @@
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
-// Get all users (admin only)
+// Get all users and pending notifications (admin only)
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll();
+    const notifications = await Notification.findAllPending(); // Fetch pending requests
     const currentUser = req.session.user;
 
     res.render('users', {
       users,
+      notifications, // Pass notifications to the view
       user: currentUser
     });
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+};
+
+// Handle reactivation notification (Approve/Ignore)
+exports.handleNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // 'approve' or 'deny'
+
+    const notification = await Notification.findById(id);
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    if (action === 'approve') {
+      // Activate the user
+      await User.updateStatus(notification.user_id, 'active');
+      await Notification.updateStatus(id, 'approved');
+      res.json({ success: true, message: 'User reactivated successfully' });
+    } else {
+      // Just dismiss the notification
+      await Notification.updateStatus(id, 'denied');
+      res.json({ success: true, message: 'Notification dismissed' });
+    }
+  } catch (error) {
+    console.error('Handle notification error:', error);
+    res.status(500).json({ error: 'Failed to handle notification' });
   }
 };
 

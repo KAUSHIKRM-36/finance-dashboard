@@ -8,12 +8,21 @@
             <ul class="navbar-nav">
                 <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
                 <li><a href="/records" class="nav-link">Records</a></li>
-                <% if (user.role === 'admin' || user.role === 'analyst') { %>
+                <% if (user.role==='admin' || user.role==='analyst' ) { %>
                     <li><a href="/analytics" class="nav-link">Analytics</a></li>
-                <% } %>
-                <% if (user.role === 'admin') { %>
-                    <li><a href="/users" class="nav-link">Users</a></li>
-                <% } %>
+                    <% } %>
+                        <% if (user.role==='admin' ) { %>
+                            <li>
+                                <a href="/users" class="nav-link">
+                                    Users
+                                    <% if (typeof pendingCount !=='undefined' && pendingCount> 0) { %>
+                                        <span class="notification-badge">
+                                            <%= pendingCount %>
+                                        </span>
+                                        <% } %>
+                                </a>
+                            </li>
+                            <% } %>
             </ul>
 
             <div class="navbar-user">

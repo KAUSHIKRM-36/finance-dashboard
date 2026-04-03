@@ -11,4 +11,7 @@ router.put('/:id/status', authenticate, authorize(['admin']), userController.upd
 router.delete('/:id', authenticate, authorize(['admin']), userController.deleteUser);
 router.post('/', authenticate, authorize(['admin']), userController.createUser);
 
+// Handle notifications
+router.put('/notifications/:id', authenticate, authorize(['admin']), userController.handleNotification);
+
 module.exports = router;
